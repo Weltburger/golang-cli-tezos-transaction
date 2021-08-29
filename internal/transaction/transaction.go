@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"blockwatch.cc/tzgo/tezos"
 	"encoding/json"
 	"fmt"
 	"github.com/go-playground/validator/v10"
@@ -16,28 +17,46 @@ import (
 	"tezos/pkg/models"
 )
 
-func CreateTransaction(address, amount string) {
-	key, err := keys.FromBase58("edsk3T1UVpvwMnJUjh6FrDPPbF4MqJsQkzTQAC36t4VG3TU1W9C8Pu", keys.Ed25519)
+func CreateTransaction(address, amount, path string) error {
+	_, err := tezos.ParseAddress(address)
+	if err != nil {
+		return errors.Wrap(err, "invalid address")
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return errors.Wrap(err, "invalid path")
+	}
+	defer file.Close()
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return errors.Wrap(err, "cannot read the file")
+	}
+
+	secretKey := fmt.Sprintf("%s", data)
+
+	key, err := keys.FromBase58(secretKey, keys.Ed25519)
 	if err != nil {
 		fmt.Printf("failed to import keys: %s\n", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	accountInfo, err := getAccountInfo(key.PubKey.GetAddress())
 	if err != nil {
 		fmt.Printf("failed to get account info: %s\n", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	if !accountInfo.CheckBalance(amount) {
 		fmt.Printf("you do not have enough money for this transaction!\n")
-		os.Exit(1)
+		return err
 	}
 
 	client, err := rpc.New("https://testnet-tezos.giganode.io")
 	if err != nil {
 		fmt.Printf("failed to initialize rpc client: %s\n", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	accountInfo.Counter++
@@ -45,7 +64,7 @@ func CreateTransaction(address, amount string) {
 	resp, head, err := client.Block(&rpc.BlockIDHead{})
 	if err != nil {
 		fmt.Printf("failed to get (%s) head block: %s\n", resp.Status(), err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	transaction := rpc.Transaction{
@@ -63,7 +82,7 @@ func CreateTransaction(address, amount string) {
 		op, err = forge.Encode(head.Hash, transaction.ToContent())
 		if err != nil {
 			fmt.Printf("failed to forge transaction: %s\n", err.Error())
-			os.Exit(1)
+			return err
 		}
 	} else {
 		reveal := rpc.Reveal{
@@ -80,14 +99,14 @@ func CreateTransaction(address, amount string) {
 		op, err = forge.Encode(head.Hash, reveal.ToContent(), transaction.ToContent())
 		if err != nil {
 			fmt.Printf("failed to forge transaction: %s\n", err.Error())
-			os.Exit(1)
+			return err
 		}
 	}
 
 	signature, err := key.SignHex(op)
 	if err != nil {
 		fmt.Printf("failed to sign operation: %s\n", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	rsty := resty.New()
@@ -98,10 +117,11 @@ func CreateTransaction(address, amount string) {
 	})
 	if err != nil {
 		fmt.Printf("failed to inject (%s): %s\n", resp.Status(), err.Error())
-		os.Exit(1)
+		return err
 	}
 
-	fmt.Println(ophash)
+	fmt.Println("Done processing. Transaction has been created. Operation hash:", ophash)
+	return nil
 }
 
 func injectionOperation(r *resty.Client, input rpc.InjectionOperationInput) (*resty.Response, string, error) {
