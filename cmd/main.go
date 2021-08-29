@@ -16,14 +16,11 @@ func main() {
 		SendToAddress struct {
 			Address string `short:"a" long:"address" required:"true" description:"Address of recipient"`
 			Amount  string `short:"s" long:"amount" required:"true" description:"The amount of money to be sent"`
-			Path    string `short:"p" long:"path" required:"true" description:"Path to the file with secret key"`
 		} `command:"sendtoaddress" description:"Make transaction in Tezos blockchain and send money (amount) to recipient (address)"`
 	}{}
 
 	_, err := gocmd.HandleFlag("SendToAddress", func(cmd *gocmd.Cmd, args []string) error {
-		if err := transaction.CreateTransaction(flags.SendToAddress.Address,
-			flags.SendToAddress.Amount,
-			flags.SendToAddress.Path); err != nil {
+		if err := transaction.CreateTransaction(flags.SendToAddress.Address, flags.SendToAddress.Amount); err != nil {
 			return err
 		}
 		return nil

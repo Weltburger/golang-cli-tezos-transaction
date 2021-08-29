@@ -17,13 +17,13 @@ import (
 	"tezos/pkg/models"
 )
 
-func CreateTransaction(address, amount, path string) error {
+func CreateTransaction(address, amount string) error {
 	_, err := tezos.ParseAddress(address)
 	if err != nil {
 		return errors.Wrap(err, "invalid address")
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open("./sk.file")
 	if err != nil {
 		return errors.Wrap(err, "invalid path")
 	}

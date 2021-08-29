@@ -13,13 +13,13 @@ type AccountInfo struct {
 }
 
 func (ai *AccountInfo) CheckBalance(money string) bool {
-	amount, err := strconv.Atoi(money)
+	amount, err := strconv.ParseUint(money, 10, 64)
 	if err != nil {
-		fmt.Printf("could not convert amount (string) into int: %s\n", err.Error())
+		fmt.Printf("could not convert amount (string) into uint64: %s\n", err.Error())
 		os.Exit(1)
 	}
 
-	if ai.Balance < (uint64(amount) + uint64(5000)) {
+	if ai.Balance < (amount + uint64(5000)) {
 		return false
 	}
 
